@@ -44,11 +44,16 @@ static void write_background(vga_ball_color_t *background) {
 //     dev.y = y;
 // }
 static void write_coords(int x, int y) {
-    // NEW: Split into 4 register writes
+    // Clamp to 10-bit range (0-1023) as per hardware
+    x = clamp_val(x, 0, 1023);
+    y = clamp_val(y, 0, 1023);
+
+    // Write to hardware registers (matches .sv address map)
     iowrite8(x & 0xFF, dev.virtbase + 0);         // X Low
-    iowrite8((x >> 8) & 0x03, dev.virtbase + 1);  // X High
+    iowrite8((x >> 8) & 0x03, dev.virtbase + 1);  // X High (2 bits)
     iowrite8(y & 0xFF, dev.virtbase + 2);         // Y Low
-    iowrite8((y >> 8) & 0x03, dev.virtbase + 3);  // Y High
+    iowrite8((y >> 8) & 0x03, dev.virtbase + 3);  // Y High (2 bits)
+    
     dev.x = x;
     dev.y = y;
 }

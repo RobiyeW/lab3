@@ -6,6 +6,15 @@
 #include "vga_ball.h"
 
 int main() {
+    // Initialize ALL struct fields
+    vga_ball_arg_t ball = { 
+        .background = { .red = 0, .green = 0, .blue = 0 }, 
+        .x = 0, 
+        .y = 0 
+    };
+    
+    // Set max coordinates to match hardware limits (10-bit)
+    int max_x = 1023, max_y = 1023;
     int fd = open("/dev/vga_ball", O_RDWR);
     if (fd < 0) {
         perror("Failed to open device. Make sure the device is loaded using insmod.");
