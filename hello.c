@@ -1,81 +1,70 @@
 /*
- * Userspace program that communicates with the vga_ball device driver
- * through ioctls
- *
- * Stephen A. Edwards
- * Columbia University
+ * Unified userspace program that handles both background colors
+ * and bouncing ball through ioctls
  */
 
-#include <stdio.h>
-#include "vga_ball.h"
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <string.h>
-#include <unistd.h>
-
-int vga_ball_fd;
-
-/* Read and print the background color */
-void print_background_color() {
-  vga_ball_arg_t vla;
-  
-  if (ioctl(vga_ball_fd, VGA_BALL_READ_BACKGROUND, &vla)) {
-      perror("ioctl(VGA_BALL_READ_BACKGROUND) failed");
-      return;
-  }
-  printf("%02x %02x %02x\n",
-	 vla.background.red, vla.background.green, vla.background.blue);
-}
-
-/* Set the background color */
-void set_background_color(const vga_ball_color_t *c)
-{
-  vga_ball_arg_t vla;
-  vla.background = *c;
-  if (ioctl(vga_ball_fd, VGA_BALL_WRITE_BACKGROUND, &vla)) {
-      perror("ioctl(VGA_BALL_SET_BACKGROUND) failed");
-      return;
-  }
-}
-
-int main()
-{
-  vga_ball_arg_t vla;
-  int i;
-  static const char filename[] = "/dev/vga_ball";
-
-  static const vga_ball_color_t colors[] = {
-    { 0xff, 0x00, 0x00 }, /* Red */
-    { 0x00, 0xff, 0x00 }, /* Green */
-    { 0x00, 0x00, 0xff }, /* Blue */
-    { 0xff, 0xff, 0x00 }, /* Yellow */
-    { 0x00, 0xff, 0xff }, /* Cyan */
-    { 0xff, 0x00, 0xff }, /* Magenta */
-    { 0x80, 0x80, 0x80 }, /* Gray */
-    { 0x00, 0x00, 0x00 }, /* Black */
-    { 0xff, 0xff, 0xff }  /* White */
-  };
-
-# define COLORS 9
-
-  printf("VGA ball Userspace program started\n");
-
-  if ( (vga_ball_fd = open(filename, O_RDWR)) == -1) {
-    fprintf(stderr, "could not open %s\n", filename);
-    return -1;
-  }
-
-  printf("initial state: ");
-  print_background_color();
-
-  for (i = 0 ; i < 24 ; i++) {
-    set_background_color(&colors[i % COLORS ]);
-    print_background_color();
-    usleep(400000);
-  }
-  
-  printf("VGA BALL Userspace program terminating\n");
-  return 0;
-}
+ #include <stdio.h>
+ #include "vga_ball.h"
+ #include <sys/ioctl.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+ #include <string.h>
+ #include <unistd.h>
+ 
+ int vga_ball_fd;
+ 
+ /* Set both background color and ball coordinates */
+ void set_all(const vga_ball_color_t *c, int x, int y) {
+   vga_ball_arg_t vla = {
+     .background = *c,
+     .x = x,
+     .y = y
+   };
+   
+   if (ioctl(vga_ball_fd, VGA_BALL_WRITE_COORDS, &vla)) {
+       perror("ioctl(VGA_BALL_WRITE_COORDS) failed");
+       return;
+   }
+ }
+ 
+ int main() {
+   vga_ball_arg_t vla;
+   int dx = 2, dy = 2;  // Movement speed
+   const int max_x = 1023, max_y = 1023;
+ 
+   static const vga_ball_color_t colors[] = {
+     {0xff, 0x00, 0x00}, {0x00, 0xff, 0x00}, {0x00, 0x00, 0xff}
+   };
+ 
+   printf("VGA Ball Controller started\n");
+ 
+   if ((vga_ball_fd = open("/dev/vga_ball", O_RDWR)) == -1) {
+     fprintf(stderr, "Could not open device\n");
+     return -1;
+   }
+ 
+   // Initial position and color
+   int x = 320, y = 240;
+   int color_index = 0;
+ 
+   while (1) {
+     // Update position
+     x += dx;
+     y += dy;
+ 
+     // Bounce logic
+     if (x <= 0 || x >= max_x) {
+       dx = -dx;
+       color_index = (color_index + 1) % 3;  // Change color on X bounce
+     }
+     if (y <= 0 || y >= max_y) dy = -dy;
+ 
+     // Update hardware
+     set_all(&colors[color_index], x, y);
+     usleep(16667);  // 60Hz refresh
+   }
+ 
+   close(vga_ball_fd);
+   return 0;
+ }
