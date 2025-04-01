@@ -38,8 +38,17 @@ static void write_background(vga_ball_color_t *background) {
 }
 
 /* Write ball coordinates */
+// static void write_coords(int x, int y) {
+//     iowrite32((y << 16) | (x & 0xFFFF), BALL_COORDS(dev.virtbase));
+//     dev.x = x;
+//     dev.y = y;
+// }
 static void write_coords(int x, int y) {
-    iowrite32((y << 16) | (x & 0xFFFF), BALL_COORDS(dev.virtbase));
+    // NEW: Split into 4 register writes
+    iowrite8(x & 0xFF, dev.virtbase + 0);         // X Low
+    iowrite8((x >> 8) & 0x03, dev.virtbase + 1);  // X High
+    iowrite8(y & 0xFF, dev.virtbase + 2);         // Y Low
+    iowrite8((y >> 8) & 0x03, dev.virtbase + 3);  // Y High
     dev.x = x;
     dev.y = y;
 }

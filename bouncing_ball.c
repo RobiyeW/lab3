@@ -16,6 +16,21 @@ int main() {
     int dx = 1, dy = 1;
     int max_x = 640, max_y = 480;
 
+    // while (1) {
+    //     ball.x += dx;
+    //     ball.y += dy;
+
+    //     if (ball.x <= 0 || ball.x >= max_x) dx = -dx;
+    //     if (ball.y <= 0 || ball.y >= max_y) dy = -dy;
+
+    //     // Check for ioctl error
+    //     if (ioctl(fd, VGA_BALL_WRITE_COORDS, &ball) == -1) {
+    //         perror("Failed to write coordinates using ioctl");
+    //         break;
+    //     }
+    //     usleep(10000); // 10 ms delay for smooth movement
+    // }
+
     while (1) {
         ball.x += dx;
         ball.y += dy;
@@ -23,12 +38,12 @@ int main() {
         if (ball.x <= 0 || ball.x >= max_x) dx = -dx;
         if (ball.y <= 0 || ball.y >= max_y) dy = -dy;
 
-        // Check for ioctl error
         if (ioctl(fd, VGA_BALL_WRITE_COORDS, &ball) == -1) {
             perror("Failed to write coordinates using ioctl");
             break;
         }
-        usleep(10000); // 10 ms delay for smooth movement
+        // NEW: Sync with 60Hz refresh rate
+        usleep(16667);  // 16.67ms delay
     }
 
     close(fd);

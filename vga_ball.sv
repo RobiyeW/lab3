@@ -34,7 +34,13 @@ module vga_ball (
    logic [9:0] vcount;
 
    logic [7:0] background_r, background_g, background_b;
-   logic [9:0] ball_x, ball_y; // Ball coordinates (10 bits)
+   //logic [9:0] ball_x, ball_y; // Ball coordinates (10 bits)
+
+   // New coordinate tracking
+   logic [9:0] current_x, current_y;  // Active coordinates
+   logic [9:0] shadow_x, shadow_y;     // Buffered coordinates
+   logic update_pending;               // Update flag
+
 
    vga_counters counters(.clk50(clk), .*);
 
@@ -44,8 +50,16 @@ module vga_ball (
         background_r <= 8'h00;
         background_g <= 8'h00;
         background_b <= 8'h80;
-        ball_x <= 10'd320;
-        ball_y <= 10'd240;
+        
+        // ball_x <= 10'd320;
+        // ball_y <= 10'd240;
+
+        //new coordinates initializing
+        shadow_x <= 10'd320;
+        shadow_y <= 10'd240;
+        current_x <= 10'd320;
+        current_y <= 10'd240;
+        update_pending <= 1'b0;
      end else if (chipselect && write) begin
         case (address)
           3'h0 : ball_x[7:0] <= writedata;          // X Low
@@ -56,16 +70,23 @@ module vga_ball (
           3'h5 : background_g <= writedata;         // Green
           3'h6 : background_b <= writedata;         // Blue
         endcase
+        if (address <= 3'h3) update_pending <= 1'b1;
      end
+     // New updating active registers duirng vertical blanking
+     if (vcount >= 10'd480 && update_pending) begin
+        current_x <= shadow_x;
+        current_y <= shadow_y;
+        update_pending <= 1'b0;
+      end
    end
 
    // Draw Ball and Background Logic
    always_comb begin
       {VGA_R, VGA_G, VGA_B} = {8'h0, 8'h0, 8'h0};
       if (VGA_BLANK_n) begin
-         if ((hcount >= ball_x) && (hcount < ball_x + 16) &&
-             (vcount >= ball_y) && (vcount < ball_y + 16)) begin
-            {VGA_R, VGA_G, VGA_B} = {8'hff, 8'hff, 8'hff}; // Draw Ball (White)
+         if ((hcount >= current_x) && (hcount < current_x + 16) &&
+             (vcount >= current_y) && (vcount < current_y + 16)) begin
+            {VGA_R, VGA_G, VGA_B} = {8'hff, 8'hff, 8'hff};
          end else begin
             {VGA_R, VGA_G, VGA_B} = {background_r, background_g, background_b}; // Background
          end
